@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Maio Laranja • Apoie Essa Causa</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+
+    *{
+      margin:0;
+      padding:0;
+      box-sizing:border-box;
+      font-family:'Poppins',sans-serif;
+    }
+
+    body{
+      min-height:100vh;
+      background:linear-gradient(180deg,#ff9800,#ff5e00);
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      padding:20px;
+    }
+
+    .app{
+      width:100%;
+      max-width:500px;
+      background:rgba(255,255,255,.08);
+      backdrop-filter:blur(10px);
+      border-radius:30px;
+      padding:20px;
+      box-shadow:0 10px 40px rgba(0,0,0,.2);
+    }
+
+    h1{
+      text-align:center;
+      color:white;
+      margin-bottom:10px;
+      font-size:2rem;
+    }
+
+    .subtitle{
+      text-align:center;
+      color:#fff8e7;
+      margin-bottom:20px;
+      line-height:1.5;
+    }
+
+    .preview{
+      width:100%;
+      aspect-ratio:1/1;
+      background:#000;
+      border-radius:25px;
+      overflow:hidden;
+      position:relative;
+      margin-bottom:20px;
+    }
+
+    canvas{
+      width:100%;
+      height:100%;
+      display:block;
+    }
+
+    .btn{
+      width:100%;
+      border:none;
+      padding:16px;
+      border-radius:18px;
+      font-size:1rem;
+      font-weight:700;
+      cursor:pointer;
+      transition:.25s;
+    }
+
+    .btn:hover{
+      transform:translateY(-2px);
+    }
+
+    .primary{
+      background:linear-gradient(135deg,#ffd000,#ff9800);
+      color:#5b3200;
+      margin-bottom:16px;
+    }
+
+    .secondary{
+      background:rgba(255,255,255,.12);
+      color:white;
+    }
+
+    .controls{
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+      margin-top:18px;
+    }
+
+    .control{
+      background:rgba(255,255,255,.08);
+      padding:12px;
+      border-radius:16px;
+      color:white;
+    }
+
+    .control label{
+      display:block;
+      margin-bottom:6px;
+    }
+
+    input[type="range"]{
+      width:100%;
+      accent-color:#ffd000;
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:12px;
+      margin-top:16px;
+    }
+
+    input[type="file"]{
+      display:none;
+    }
+
+    .footer{
+      margin-top:20px;
+      color:white;
+      text-align:center;
+      font-size:.92rem;
+      opacity:.95;
+    }
+
+  </style>
+</head>
+
+<body>
+
+<div class="app">
+
+  <h1>🧡 Maio Laranja</h1>
+
+  <div class="subtitle">
+    Declare seu apoio à proteção das nossas crianças e adolescentes.
+  </div>
+
+  <div class="preview">
+    <canvas id="canvas" width="1080" height="1080"></canvas>
+  </div>
+
+  <label for="upload">
+    <div class="btn primary">
+      📸 ADICIONE SUA FOTO
+    </div>
+  </label>
+
+  <input type="file" id="upload" accept="image/*">
+
+  <div class="controls">
+
+    <div class="control">
+      <label>🔍 Zoom</label>
+      <input type="range" id="zoom" min="0.5" max="3" step="0.01" value="1">
+    </div>
+
+    <div class="control">
+      <label>↔️ Horizontal</label>
+      <input type="range" id="moveX" min="-400" max="400" value="0">
+    </div>
+
+    <div class="control">
+      <label>↕️ Vertical</label>
+      <input type="range" id="moveY" min="-400" max="400" value="0">
+    </div>
+
+    <div class="control">
+      <label>🔄 Rotação</label>
+      <input type="range" id="rotate" min="-45" max="45" value="0">
+    </div>
+
+  </div>
+
+  <div class="grid">
+    <button class="btn secondary" id="downloadBtn">
+      ⬇️ Baixar
+    </button>
+
+    <button class="btn secondary" id="shareBtn">
+      📤 Compartilhar
+    </button>
+  </div>
+
+  <div class="footer">
+    Campanha 18 de Maio • #EuApoioEssaCausa
+  </div>
+
+</div>
+
+<script>
+
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+const upload = document.getElementById('upload');
+
+const zoomInput = document.getElementById('zoom');
+const moveXInput = document.getElementById('moveX');
+const moveYInput = document.getElementById('moveY');
+const rotateInput = document.getElementById('rotate');
+
+const downloadBtn = document.getElementById('downloadBtn');
+const shareBtn = document.getElementById('shareBtn');
+
+const frame = new Image();
+
+/*
+IMPORTANTE:
+COLOQUE A MOLDURA NA MESMA PASTA DO HTML
+E USE EXATAMENTE O MESMO NOME DO ARQUIVO
+*/
+frame.src = "MOLDURA(1).png";
+
+let userImage = null;
+
+const circle = {
+  x:540,
+  y:420,
+  radius:300
+};
+
+const state = {
+  zoom:1,
+  moveX:0,
+  moveY:0,
+  rotate:0
+};
+
+function draw(){
+
+  ctx.clearRect(0,0,1080,1080);
+
+  ctx.fillStyle = "#000";
+  ctx.fillRect(0,0,1080,1080);
+
+  if(userImage){
+
+    ctx.save();
+
+    // recorte circular
+    ctx.beginPath();
+    ctx.arc(circle.x,circle.y,circle.radius,0,Math.PI*2);
+    ctx.closePath();
+    ctx.clip();
+
+    const imgW = userImage.width;
+    const imgH = userImage.height;
+
+    // efeito cover
+    const scale = Math.max(
+      (circle.radius*2)/imgW,
+      (circle.radius*2)/imgH
+    ) * state.zoom;
+
+    const drawW = imgW * scale;
+    const drawH = imgH * scale;
+
+    // rotação
+    ctx.translate(circle.x,circle.y);
+    ctx.rotate(state.rotate * Math.PI / 180);
+    ctx.translate(-circle.x,-circle.y);
+
+    // desenha imagem
+    ctx.drawImage(
+      userImage,
+      circle.x - drawW/2 + state.moveX,
+      circle.y - drawH/2 + state.moveY,
+      drawW,
+      drawH
+    );
+
+    ctx.restore();
+  }
+
+  // moldura por cima
+  ctx.drawImage(frame,0,0,1080,1080);
+}
+
+frame.onload = draw;
+
+upload.addEventListener('change',(e)=>{
+
+  const file = e.target.files[0];
+
+  if(!file) return;
+
+  const reader = new FileReader();
+
+  reader.onload = function(event){
+
+    const img = new Image();
+
+    img.onload = function(){
+
+      userImage = img;
+
+      draw();
+    }
+
+    img.src = event.target.result;
+  }
+
+  reader.readAsDataURL(file);
+});
+
+zoomInput.addEventListener('input',()=>{
+  state.zoom = parseFloat(zoomInput.value);
+  draw();
+});
+
+moveXInput.addEventListener('input',()=>{
+  state.moveX = parseInt(moveXInput.value);
+  draw();
+});
+
+moveYInput.addEventListener('input',()=>{
+  state.moveY = parseInt(moveYInput.value);
+  draw();
+});
+
+rotateInput.addEventListener('input',()=>{
+  state.rotate = parseInt(rotateInput.value);
+  draw();
+});
+
+downloadBtn.addEventListener('click',()=>{
+
+  const link = document.createElement('a');
+
+  link.download = 'maio-laranja.png';
+  link.href = canvas.toDataURL('image/png');
+
+  link.click();
+});
+
+shareBtn.addEventListener('click', async ()=>{
+
+  try{
+
+    const blob = await (await fetch(canvas.toDataURL())).blob();
+
+    const file = new File([blob],'maio-laranja.png',{
+      type:'image/png'
+    });
+
+    if(navigator.share){
+
+      await navigator.share({
+        title:'Maio Laranja',
+        text:'Eu apoio essa causa 🧡',
+        files:[file]
+      });
+
+    }else{
+      alert('Compartilhamento não suportado.');
+    }
+
+  }catch(err){
+    console.log(err);
+  }
+
+});
+
+</script>
+
+</body>
+</html>
